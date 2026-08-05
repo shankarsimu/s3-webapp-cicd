@@ -21,7 +21,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::848229484060:role/GitHubActionsS3DeployRole
-          aws-region: us-east-
+          aws-region: us-east-1
 
       - name: Verify AWS connection
         run: |
