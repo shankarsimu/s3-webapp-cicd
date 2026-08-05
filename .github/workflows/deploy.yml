@@ -7,6 +7,7 @@ on:
 
   workflow_dispatch:
 
+# Required for GitHub OIDC
 permissions:
   id-token: write
   contents: read
@@ -17,6 +18,7 @@ env:
   CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
 
 jobs:
+
   deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
@@ -27,7 +29,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Validate files
+      # 2. Validate website files
       - name: Validate website
         run: |
           test -f index.html
@@ -37,35 +39,49 @@ jobs:
           echo "Website validation successful"
 
       # 3. Configure AWS using GitHub OIDC
-       # 3. Configure AWS using GitHub OIDC
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      # 4. Verify AWS authentication
+      - name: Verify AWS identity
+        run: |
+          aws sts get-caller-identity
 
-      # 4. Upload website to S3
+      # 5. Verify S3 bucket
+      - name: Verify S3 bucket
+        run: |
+          echo "Checking S3 bucket: ${{ env.S3_BUCKET }}"
+
+          aws s3api head-bucket \
+            --bucket "${{ env.S3_BUCKET }}"
+
+          echo "S3 bucket exists"
+
+      # 6. Upload website to S3
       - name: Deploy website to S3
         run: |
-          aws s3 sync . s3://${{ env.S3_BUCKET }} \
+          aws s3 sync . "s3://${{ env.S3_BUCKET }}" \
             --delete \
             --exclude ".git/*" \
             --exclude ".github/*" \
             --exclude "terraform/*" \
             --exclude "README.md"
 
-      # 5. Clear CloudFront cache
+      # 7. Invalidate CloudFront cache
       - name: Invalidate CloudFront
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
             --paths "/*"
 
-      # 6. Deployment complete
+      # 8. Deployment complete
       - name: Deployment successful
         run: |
+          echo "=========================================="
           echo "Deployment completed successfully!"
+          echo "=========================================="
+          echo "S3 Bucket: ${{ env.S3_BUCKET }}"
           echo "CloudFront Distribution: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}"
