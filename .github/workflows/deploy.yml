@@ -1,99 +1,41 @@
-name: Deploy Static Website to AWS
+name: Deploy Static Website to S3
 
 on:
   push:
     branches:
       - main
 
-  workflow_dispatch:
-
-# Required for GitHub OIDC
 permissions:
   id-token: write
   contents: read
 
-env:
-  AWS_REGION: us-east-1
-  S3_BUCKET: ${{ secrets.S3_BUCKET }}
-  CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
-
 jobs:
-
   deploy:
-    name: Build and Deploy
     runs-on: ubuntu-latest
 
     steps:
-
-      # 1. Checkout source code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Validate website files
-      - name: Validate website
-        run: |
-          test -f index.html
-          test -f assets/style.css
-          test -f assets/script.js
-
-          echo "Website validation successful"
-
-      # 3. Configure AWS using GitHub OIDC
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: arn:aws:iam::848229484060:role/GitHubActionsS3DeployRole
+          aws-region: us-east-
 
-      # 4. Verify AWS authentication
-            # Verify which AWS account GitHub is connected to
-      - name: Verify AWS account
+      - name: Verify AWS connection
         run: |
-          echo "AWS Region: $AWS_REGION"
           aws sts get-caller-identity
 
-      # Verify S3 bucket
-      - name: Verify S3 bucket
-        run: |
-          echo "Bucket configured: [$S3_BUCKET]"
-
-          aws s3api head-bucket \
-            --bucket "$S3_BUCKET"
-
-          echo "Bucket exists!"
-
-      # 5. Verify S3 bucket
-      - name: Verify S3 bucket
-        run: |
-          echo "Checking S3 bucket: ${{ env.S3_BUCKET }}"
-
-          aws s3api head-bucket \
-            --bucket "${{ env.S3_BUCKET }}"
-
-          echo "S3 bucket exists"
-
-      # 6. Upload website to S3
       - name: Deploy website to S3
         run: |
-          aws s3 sync . "s3://${{ env.S3_BUCKET }}" \
+          aws s3 sync ./ s3://shankar-devops-portfolio-406037d4 \
             --delete \
             --exclude ".git/*" \
-            --exclude ".github/*" \
-            --exclude "terraform/*" \
-            --exclude "README.md"
+            --exclude ".github/*"
 
-      # 7. Invalidate CloudFront cache
-      - name: Invalidate CloudFront
+      - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id "${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --distribution-id E3437EFJDCER9P \
             --paths "/*"
-
-      # 8. Deployment complete
-      - name: Deployment successful
-        run: |
-          echo "=========================================="
-          echo "Deployment completed successfully!"
-          echo "=========================================="
-          echo "S3 Bucket: ${{ env.S3_BUCKET }}"
-          echo "CloudFront Distribution: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}"
