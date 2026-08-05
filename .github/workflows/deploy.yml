@@ -46,9 +46,21 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # 4. Verify AWS authentication
-      - name: Verify AWS identity
+            # Verify which AWS account GitHub is connected to
+      - name: Verify AWS account
         run: |
+          echo "AWS Region: $AWS_REGION"
           aws sts get-caller-identity
+
+      # Verify S3 bucket
+      - name: Verify S3 bucket
+        run: |
+          echo "Bucket configured: [$S3_BUCKET]"
+
+          aws s3api head-bucket \
+            --bucket "$S3_BUCKET"
+
+          echo "Bucket exists!"
 
       # 5. Verify S3 bucket
       - name: Verify S3 bucket
